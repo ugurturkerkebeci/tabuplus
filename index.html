@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TabuPlus - Modern & Vektörel Web Tabu Oyunu</title>
+  
+  <!-- Mobil Web App & PWA Uyumluluğu -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TabuPlus">
+  <meta name="theme-color" content="#0a0a12">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="Sunucusuz, ultra hızlı, %100 mobil uyumlu ve modern vektörel kart tasarımlı Tabu oyunu.">
+
+  <!-- Favicon / Logo SVG Data URI -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%236366f1'/><path d='M12 13 H28 M20 13 V27' stroke='%23ffffff' stroke-width='3' stroke-linecap='round'/><path d='M26 23 V29 M23 26 H29' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round'/></svg>">
+
+  <!-- Stil Dosyası -->
+  <link rel="stylesheet" href="css/style.css?v=4.0">
+
+  <!-- PeerJS (Sıfır Sunucu Yükü ile WebRTC P2P Bağlantı) -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+  <div id="app">
+    <!-- Üst Bar / Header -->
+    <header class="app-header">
+      <div class="brand-wrapper" id="btn-home-nav">
+        <svg class="brand-svg-mark" viewBox="0 0 40 40" width="32" height="32" fill="none">
+          <defs>
+            <linearGradient id="logoG" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6366f1" />
+              <stop offset="100%" stop-color="#ec4899" />
+            </linearGradient>
+          </defs>
+          <rect width="40" height="40" rx="10" fill="url(#logoG)"/>
+          <path d="M12 13 H28 M20 13 V27" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+          <path d="M26 23 V29 M23 26 H29" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-logo-text">TABU<span class="brand-plus">PLUS</span></span>
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-btn" id="btn-toggle-sound" title="Ses Aç/Kapat" aria-label="Ses Ayarı">
+          <!-- Ses İkonu Dinamik Eklenecek -->
+        </button>
+        <button class="icon-btn" id="btn-open-rules" title="Kural ve Ayarlar" aria-label="Ayarlar">
+          <!-- Ayar İkonu Dinamik Eklenecek -->
+        </button>
+      </div>
+    </header>
+
+    <!-- ===================================================================
+         1. EKRAN: GİRİŞ / MOD SEÇİMİ (HOME)
+         =================================================================== -->
+    <main class="screen active" id="screen-home">
+      <section class="hero-card">
+        <h1 class="hero-title">Arkadaşlarınla Tabu Oyna</h1>
+        <p class="hero-subtitle">
+          İster tek telefonla toplanıp paslaşarak oynayın, ister QR okutup herkes kendi telefonundan bağlansın!
+        </p>
+
+        <div class="mode-selection-grid">
+          <!-- Mod 1: Tek Cihazda Oyna -->
+          <button class="mode-btn primary" id="btn-mode-local">
+            <div class="mode-btn-content">
+              <span class="mode-btn-title">Aynı Cihazda Oyna</span>
+              <span class="mode-btn-desc">Telefonu elden ele devredin, internetsiz oynayın</span>
+            </div>
+            <span class="mode-btn-badge">HIZLI BAŞLAT</span>
+          </button>
+
+          <!-- Mod 2: Oda Kur (Host - Çok Cihazlı) -->
+          <button class="mode-btn" id="btn-mode-host">
+            <div class="mode-btn-content">
+              <span class="mode-btn-title">Oda Kur (Host)</span>
+              <span class="mode-btn-desc">QR kod veya oda koduyla herkes telefonundan bağlansın</span>
+            </div>
+            <span class="mode-btn-badge">P2P ODA</span>
+          </button>
+
+          <!-- Mod 3: Odaya Katıl -->
+          <button class="mode-btn" id="btn-mode-join">
+            <div class="mode-btn-content">
+              <span class="mode-btn-title">Odaya Katıl</span>
+              <span class="mode-btn-desc">Arkadaşının açtığı odaya kod veya QR ile gir</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Alt Kısayollar -->
+      <div style="display: flex; gap: 10px; margin-top: auto; padding-bottom: 12px;">
+        <button class="btn-secondary" id="btn-open-custom-cards" style="margin-top: 0; font-size: 0.88rem;">
+          Özel Kart Ekle / Görüntüle
+        </button>
+      </div>
+    </main>
+
+    <!-- ===================================================================
+         2. EKRAN: TAKIM & OYUN YAPILANDIRMASI (SETUP)
+         =================================================================== -->
+    <section class="screen" id="screen-setup">
+      <div class="setup-panel">
+        <!-- Takımlar Bölümü -->
+        <div class="panel-section">
+          <div class="section-header">
+            <h2 class="section-title">Takım Ayarları</h2>
+            <button class="icon-btn" id="btn-add-team" style="width: 32px; height: 32px;" title="Yeni Takım Ekle">
+              +
+            </button>
+          </div>
+          <div class="teams-list" id="teams-container">
+            <!-- Dinamik Takımlar JS ile Yüklenecek -->
+          </div>
+        </div>
+
+        <!-- Oyun Modu Seçimi Bölümü -->
+        <div class="panel-section">
+          <div class="section-header">
+            <h2 class="section-title">Oyun Modu</h2>
+            <span class="category-status-tag" id="lbl-active-mode">Klasik Tabu</span>
+          </div>
+          <div class="modes-grid" id="modes-grid-container">
+            <div class="mode-option-card active" data-mode="CLASSIC">
+              <div class="mode-card-top">
+                <span class="mode-card-title">Klasik Tabu</span>
+                <span class="mode-card-icon">📖</span>
+              </div>
+              <span class="mode-card-desc">5 yasaklı kelimeyi kullanmadan takımına anlat.</span>
+            </div>
+
+            <div class="mode-option-card" data-mode="DRAWING">
+              <div class="mode-card-top">
+                <span class="mode-card-title">Çizerek Anlat</span>
+                <span class="mode-card-icon">✏️</span>
+              </div>
+              <span class="mode-card-desc">Konuşmak yasak! Dahili çizim tahtasıyla çizerek anlat.</span>
+            </div>
+
+            <div class="mode-option-card" data-mode="MIME">
+              <div class="mode-card-top">
+                <span class="mode-card-title">Sessiz Sinema</span>
+                <span class="mode-card-icon">🎭</span>
+              </div>
+              <span class="mode-card-desc">Sıfır ses! Sadece jest, mimik ve pandomimle canlandır.</span>
+            </div>
+
+            <div class="mode-option-card" data-mode="ONE_WORD">
+              <div class="mode-card-top">
+                <span class="mode-card-title">Tek Kelime</span>
+                <span class="mode-card-icon">💬</span>
+              </div>
+              <span class="mode-card-desc">Kart başına sadece 1 kelimelik tek bir ipucu hakkı!</span>
+            </div>
+
+            <div class="mode-option-card" data-mode="BLITZ">
+              <div class="mode-card-top">
+                <span class="mode-card-title">Yıldırım (Blitz)</span>
+                <span class="mode-card-icon">⚡</span>
+              </div>
+              <span class="mode-card-desc">Pas yok! Her doğru cevapta sürenize +5 saniye eklenir.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hızlı Kurallar Bölümü -->
+        <div class="panel-section">
+          <div class="section-header">
+            <h2 class="section-title">Oyun Kuralları</h2>
+          </div>
+          <div class="rules-grid">
+            <div class="rule-control">
+              <label class="rule-label" for="rule-time">Tur Süresi</label>
+              <select class="rule-select" id="rule-time">
+                <option value="30">30 Saniye</option>
+                <option value="45">45 Saniye</option>
+                <option value="60" selected>60 Saniye</option>
+                <option value="90">90 Saniye</option>
+                <option value="120">120 Saniye</option>
+              </select>
+            </div>
+
+            <div class="rule-control">
+              <label class="rule-label" for="rule-pass">Pas Hakkı</label>
+              <select class="rule-select" id="rule-pass">
+                <option value="1">1 Pas</option>
+                <option value="2">2 Pas</option>
+                <option value="3" selected>3 Pas</option>
+                <option value="5">5 Pas</option>
+                <option value="999">Sınırsız</option>
+              </select>
+            </div>
+
+            <div class="rule-control">
+              <label class="rule-label" for="rule-score">Kazanma Skoru</label>
+              <select class="rule-select" id="rule-score">
+                <option value="15">15 Puan</option>
+                <option value="25" selected>25 Puan</option>
+                <option value="50">50 Puan</option>
+                <option value="100">100 Puan</option>
+              </select>
+            </div>
+
+            <div class="rule-control">
+              <label class="rule-label" for="rule-penalty">Tabu Cezası</label>
+              <select class="rule-select" id="rule-penalty">
+                <option value="-1" selected>-1 Puan</option>
+                <option value="0">0 (Cezasız)</option>
+                <option value="-2">-2 Puan</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kategori Seçimi Bölümü (Çoklu Seçim) -->
+        <div class="panel-section">
+          <div class="category-header-row">
+            <div class="category-header-info">
+              <h2 class="section-title">Kategoriler</h2>
+              <span class="category-status-tag" id="lbl-category-count">Tümü Seçili (18 Kategori • 1800 Kart)</span>
+            </div>
+            <div class="category-quick-actions">
+              <button type="button" class="btn-chip-action" id="btn-select-all-cats">Tümü</button>
+              <button type="button" class="btn-chip-action" id="btn-clear-all-cats">Temizle</button>
+            </div>
+          </div>
+
+          <div class="category-chips-grid" id="category-chips-container">
+            <button type="button" class="category-chip selected" data-category="TARİH"><span class="category-chip-check">✓</span><span>TARİH</span></button>
+            <button type="button" class="category-chip selected" data-category="COĞRAFYA"><span class="category-chip-check">✓</span><span>COĞRAFYA</span></button>
+            <button type="button" class="category-chip selected" data-category="BİLİM & UZAY"><span class="category-chip-check">✓</span><span>BİLİM & UZAY</span></button>
+            <button type="button" class="category-chip selected" data-category="DİN & İNANÇ"><span class="category-chip-check">✓</span><span>DİN & İNANÇ</span></button>
+            <button type="button" class="category-chip selected" data-category="EDEBİYAT & ŞİİR"><span class="category-chip-check">✓</span><span>EDEBİYAT & ŞİİR</span></button>
+            <button type="button" class="category-chip selected" data-category="FELSEFE & MANTIK"><span class="category-chip-check">✓</span><span>FELSEFE & MANTIK</span></button>
+            <button type="button" class="category-chip selected" data-category="MİTOLOJİ & EFSANE"><span class="category-chip-check">✓</span><span>MİTOLOJİ & EFSANE</span></button>
+            <button type="button" class="category-chip selected" data-category="TIP & SAĞLIK"><span class="category-chip-check">✓</span><span>TIP & SAĞLIK</span></button>
+            <button type="button" class="category-chip selected" data-category="SİNEMA & DİZİ"><span class="category-chip-check">✓</span><span>SİNEMA & DİZİ</span></button>
+            <button type="button" class="category-chip selected" data-category="MÜZİK & SANAT"><span class="category-chip-check">✓</span><span>MÜZİK & SANAT</span></button>
+            <button type="button" class="category-chip selected" data-category="SPOR & OYUN"><span class="category-chip-check">✓</span><span>SPOR & OYUN</span></button>
+            <button type="button" class="category-chip selected" data-category="YEMEK & MUTFAK"><span class="category-chip-check">✓</span><span>YEMEK & MUTFAK</span></button>
+            <button type="button" class="category-chip selected" data-category="TEKNOLOJİ & DİJİTAL"><span class="category-chip-check">✓</span><span>TEKNOLOJİ & DİJİTAL</span></button>
+            <button type="button" class="category-chip selected" data-category="GÜNLÜK YAŞAM & EV"><span class="category-chip-check">✓</span><span>GÜNLÜK YAŞAM & EV</span></button>
+            <button type="button" class="category-chip selected" data-category="MESLEKLER"><span class="category-chip-check">✓</span><span>MESLEKLER</span></button>
+            <button type="button" class="category-chip selected" data-category="DOĞA & CANLILAR"><span class="category-chip-check">✓</span><span>DOĞA & CANLILAR</span></button>
+            <button type="button" class="category-chip selected" data-category="DEYİMLER & KAVRAMLAR"><span class="category-chip-check">✓</span><span>DEYİMLER & KAVRAMLAR</span></button>
+            <button type="button" class="category-chip selected" data-category="POPÜLER KÜLTÜR"><span class="category-chip-check">✓</span><span>POPÜLER KÜLTÜR</span></button>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="btn-start-game-from-setup">
+          Oyuna Başla
+        </button>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         3. EKRAN: ODA / QR LOBİSİ (LOBBY - P2P HOST)
+         =================================================================== -->
+    <section class="screen" id="screen-lobby">
+      <div class="room-box">
+        <h2 style="font-family: 'Outfit'; font-size: 1.3rem; margin-bottom: 6px;">Oda Hazır!</h2>
+        <p style="color: var(--text-muted); font-size: 0.88rem;">Arkadaşlarınız kamerayla QR kodu okutabilir veya aşağıdaki kodu girebilir:</p>
+
+        <div class="room-code-display">
+          <span class="room-badge" id="lobby-room-code">TP-0000</span>
+          <button class="copy-btn" id="btn-copy-room-link">Linki Kopyala</button>
+        </div>
+
+        <!-- SVG Tabanlı QR Kod Konteyneri -->
+        <div id="lobby-qr-container" style="margin: 16px 0;"></div>
+
+        <div class="connected-players" id="lobby-players-count">
+          Bağlı Cihaz: <strong>0 Oyuncu</strong>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="btn-start-p2p-game">
+        Herkes Hazır - Oyunu Başlat
+      </button>
+      <button class="btn-secondary" id="btn-cancel-lobby">
+        Ana Menüye Dön
+      </button>
+    </section>
+
+    <!-- ===================================================================
+         4. EKRAN: OYUN EKRANI & ÖZEL VEKTÖREL KART (GAMEPLAY)
+         =================================================================== -->
+    <section class="screen" id="screen-game">
+      <!-- Üst Durum Çubuğu (HUD) -->
+      <div class="game-top-hud">
+        <div class="hud-team-tag">
+          <span class="hud-team-dot" id="hud-team-dot"></span>
+          <span class="hud-team-name" id="hud-team-name">KIRMIZI TAKIM</span>
+          <span class="hud-mode-pill" id="hud-mode-tag">KLASİK</span>
+        </div>
+
+        <div class="timer-container">
+          <span class="timer-text" id="hud-timer">60</span>
+        </div>
+
+        <div class="hud-score-pill" id="hud-round-score">
+          0 Puan
+        </div>
+      </div>
+
+      <!-- Mod Kural Banner'ı -->
+      <div class="game-mode-banner" id="game-mode-banner" style="display: none;">
+        <span id="game-mode-banner-icon">💡</span>
+        <span id="game-mode-banner-text">Konuşmak serbesttir.</span>
+      </div>
+
+      <!-- Çizim Tahtası (Çizerek Anlat Modu) -->
+      <div class="drawing-container" id="drawing-container">
+        <div class="drawing-toolbar">
+          <div class="drawing-colors" id="canvas-color-palette">
+            <button type="button" class="color-dot-btn active" style="background:#ffffff;" data-color="#ffffff"></button>
+            <button type="button" class="color-dot-btn" style="background:#ef4444;" data-color="#ef4444"></button>
+            <button type="button" class="color-dot-btn" style="background:#3b82f6;" data-color="#3b82f6"></button>
+            <button type="button" class="color-dot-btn" style="background:#10b981;" data-color="#10b981"></button>
+            <button type="button" class="color-dot-btn" style="background:#f59e0b;" data-color="#f59e0b"></button>
+          </div>
+          <div class="drawing-actions">
+            <button type="button" class="tool-action-btn" id="btn-draw-eraser">Silgi</button>
+            <button type="button" class="tool-action-btn" id="btn-draw-clear">Temizle</button>
+          </div>
+        </div>
+        <canvas id="drawing-canvas"></canvas>
+      </div>
+
+      <button type="button" class="btn-secondary" id="btn-toggle-drawing" style="display:none; margin: 0 0 10px; padding: 10px; font-size: 0.88rem;">
+        ✏️ Çizim Tahtasını Aç / Kapat
+      </button>
+
+      <!-- Kelimeyi Gizle / Göster Butonu (Çizerek Anlat Modu İçin) -->
+      <button type="button" class="btn-hide-word" id="btn-toggle-word-visibility" style="display: none;">
+        <span id="hide-word-icon">👁️</span>
+        <span id="hide-word-text">Kelimeyi Gizle (Çizmeye Başla)</span>
+      </button>
+
+      <!-- Ortada Vektörel Kart Sahnesi Alanı -->
+      <div style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; width: 100%;">
+        <div class="card-stage" id="card-stage-container" style="width: 100%; height: 100%;">
+          <!-- Vektörel SVG Şablonu Buraya Render Edilecek -->
+        </div>
+        <div class="word-hidden-badge-overlay" id="word-hidden-overlay" style="display: none;">
+          <span class="word-hidden-icon">🔒</span>
+          <div class="word-hidden-title">Kelime Gizlendi</div>
+          <div class="word-hidden-desc">Çizmeye başlayabilirsiniz. Kelimeyi tekrar görmek için üstteki butona dokunun.</div>
+        </div>
+      </div>
+
+      <!-- Alt Oyun Aksiyon Butonları (Doğru, Pas, Tabu) -->
+      <div class="game-controls" id="game-controls-bar">
+        <button class="action-btn btn-pass" id="btn-action-pass" title="Pas Geç">
+          <div id="icon-pass-container"></div>
+          <span class="action-btn-label">PAS</span>
+          <span class="action-btn-counter" id="lbl-pass-count">Kalan: 3</span>
+        </button>
+
+        <button class="action-btn btn-taboo" id="btn-action-taboo" title="Tabu / Yasaklı Kelime">
+          <div id="icon-taboo-container"></div>
+          <span class="action-btn-label">TABU!</span>
+          <span class="action-btn-counter" id="lbl-penalty-val">-1 Puan</span>
+        </button>
+
+        <button class="action-btn btn-correct" id="btn-action-correct" title="Doğru Bildi">
+          <div id="icon-correct-container"></div>
+          <span class="action-btn-label">DOĞRU</span>
+          <span class="action-btn-counter">+1 Puan</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         5. EKRAN: İSTEMCİ HAKEM / BUZZER / CANLI İZLEME (CLIENT LIVE)
+         =================================================================== -->
+    <section class="screen" id="screen-client-buzzer">
+      <div class="game-top-hud">
+        <div class="hud-team-tag">
+          <span class="hud-team-dot" id="client-hud-dot"></span>
+          <span class="hud-team-name" id="client-hud-team">Takım Sırası</span>
+          <span class="hud-mode-pill" id="client-hud-mode-tag">CANLI</span>
+        </div>
+        <div class="timer-container">
+          <span class="timer-text" id="client-hud-timer">60</span>
+        </div>
+        <div class="hud-score-pill" id="client-hud-score">
+          0 Puan
+        </div>
+      </div>
+
+      <!-- Çizim Modunda Oyuncuların Canlı İzlediği Yazı Tahtası -->
+      <div class="client-live-drawing-box" id="client-live-drawing-container" style="display: none;">
+        <div class="client-canvas-header">
+          <span>🎨 Canlı Yazı Tahtası (Anlatıcı Çiziyor)</span>
+          <span class="category-status-tag" style="font-size: 0.72rem;">Yazı Yazmak Yasaktır</span>
+        </div>
+        <canvas id="client-live-canvas"></canvas>
+      </div>
+
+      <!-- Çizim Modu İpucu Banner'ı -->
+      <div class="game-mode-banner" id="client-drawing-hint" style="display: none;">
+        <span>💡</span>
+        <span>Tahmin etmeye çalışın! Anlatıcı çizdikçe çizgiler canlı olarak buraya yansır.</span>
+      </div>
+
+      <!-- Klasik/Diğer Modlarda Kart Alanı -->
+      <div class="card-stage" id="client-card-stage" style="margin-bottom: 12px;">
+        <!-- Karşı takım oyuncusunun ekranındaki yasaklı kelimeler -->
+      </div>
+
+      <!-- Karşı Takımın Kullanacağı Canlı TABU Buzzer Tuşu -->
+      <div style="padding: 10px 0;" id="client-buzzer-container">
+        <button class="action-btn btn-taboo" id="btn-client-taboo-buzzer" style="width:100%; height:80px; font-size:1.4rem;">
+          BUZZER / TABU! (HAKEM)
+        </button>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         6. EKRAN: TUR SONU VE SKOR TABLOSU (SUMMARY)
+         =================================================================== -->
+    <section class="screen" id="screen-summary">
+      <div class="summary-card">
+        <h2 class="summary-title" id="summary-round-title">Tur Tamamlandı!</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;" id="summary-team-desc">Kırmızı Takım anlatımını tamamladı.</p>
+
+        <!-- Tur İstatistikleri -->
+        <div class="round-stats-grid">
+          <div class="stat-box">
+            <span class="stat-value correct" id="stat-round-correct">0</span>
+            <span class="stat-label">Doğru</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-value taboo" id="stat-round-taboo">0</span>
+            <span class="stat-label">Tabu</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-value pass" id="stat-round-pass">0</span>
+            <span class="stat-label">Pas</span>
+          </div>
+        </div>
+
+        <!-- Genel Skor Tahtası -->
+        <h3 style="font-family: 'Outfit'; font-size: 1.1rem; text-align: left; margin: 16px 0 8px;">Genel Skor Durumu</h3>
+        <div class="scoreboard-table" id="scoreboard-list">
+          <!-- Skor Listesi JS ile doldurulacak -->
+        </div>
+      </div>
+
+      <button class="btn-primary" id="btn-next-round">
+        Sıradaki Tura Geç
+      </button>
+      <button class="btn-secondary" id="btn-finish-game">
+        Oyunu Bitir & Menüye Dön
+      </button>
+    </section>
+
+    <!-- ===================================================================
+         MODAL: ODAYA KATIL (JOIN ROOM)
+         =================================================================== -->
+    <div class="modal-overlay" id="modal-join">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Odaya Bağlan</h2>
+          <button class="icon-btn" id="btn-close-join-modal" style="width: 32px; height: 32px;">✕</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="input-room-code">Oda Kodu</label>
+          <input type="text" class="form-input" id="input-room-code" placeholder="Örn: TP-4821" maxlength="10" style="text-transform: uppercase; font-weight: 800; font-size: 1.3rem; letter-spacing: 2px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="input-player-name">Adınız / Lakabınız</label>
+          <input type="text" class="form-input" id="input-player-name" placeholder="Oyuncu Adı" value="Oyuncu 1">
+        </div>
+        <button class="btn-primary" id="btn-submit-join">
+          Bağlan
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         MODAL: ÖZEL KART EKLE (CUSTOM CARDS)
+         =================================================================== -->
+    <div class="modal-overlay" id="modal-custom-cards">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Özel Kart Ekle</h2>
+          <button class="icon-btn" id="btn-close-custom-modal" style="width: 32px; height: 32px;">✕</button>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+          Kendi arkadaş grubunuza özel kelimeleri ekleyin, oyun destesine anında dahil olsun!
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="custom-word">Anlatılacak Kelime</label>
+          <input type="text" class="form-input" id="custom-word" placeholder="Örn: HALI SAHA">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="custom-category-select">Kategori</label>
+          <select class="form-input rule-select" id="custom-category-select">
+            <!-- Kategoriler JS ile dinamik eklenecek -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Yasaklı 5 Kelime</label>
+          <input type="text" class="form-input custom-forbidden" placeholder="1. Yasaklı Kelime" style="margin-bottom: 6px;">
+          <input type="text" class="form-input custom-forbidden" placeholder="2. Yasaklı Kelime" style="margin-bottom: 6px;">
+          <input type="text" class="form-input custom-forbidden" placeholder="3. Yasaklı Kelime" style="margin-bottom: 6px;">
+          <input type="text" class="form-input custom-forbidden" placeholder="4. Yasaklı Kelime" style="margin-bottom: 6px;">
+          <input type="text" class="form-input custom-forbidden" placeholder="5. Yasaklı Kelime">
+        </div>
+
+        <button class="btn-primary" id="btn-save-custom-card">
+          Kartı Desteye Kaydet
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         MODAL: KURAL BİLGİLENDİRMESİ & AYARLAR
+         =================================================================== -->
+    <div class="modal-overlay" id="modal-rules">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">TabuPlus Kuralları</h2>
+          <button class="icon-btn" id="btn-close-rules-modal" style="width: 32px; height: 32px;">✕</button>
+        </div>
+        <div style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+          <p style="margin-bottom: 10px;">
+            <strong style="color:#fff;">1. Amaç:</strong> Kartın en üstündeki ana kelimeyi, altındaki 5 yasaklı kelimeyi ve onların köklerini kullanmadan takım arkadaşlarınıza anlatmaktır.
+          </p>
+          <p style="margin-bottom: 10px;">
+            <strong style="color:#fff;">2. Yasaklar:</strong> Yasaklı kelimeleri söylemek, kelimenin yabancı dildeki karşılığını kullanmak, heceleme yapmak veya baş harflerini söylemek TABU sayılır.
+          </p>
+          <p style="margin-bottom: 10px;">
+            <strong style="color:#fff;">3. Hakemlik & Buzzer:</strong> Karşı takım oyuncuları anlatıcının yanında veya kendi telefonlarından yasaklı kelimeleri takip eder; kural ihlalinde TABU butonuna basar.
+          </p>
+          <p>
+            <strong style="color:#fff;">4. Pas:</strong> Tur başına belirlenen pas hakkı kadar kelime pas geçilebilir.
+          </p>
+        </div>
+        <button class="btn-secondary" id="btn-ok-rules" style="margin-top: 16px;">
+          Anladım
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Ana Uygulama Mantığı (ES6 Modülü) -->
+  <script type="module" src="js/app.js?v=4.0"></script>
+</body>
+</html>
