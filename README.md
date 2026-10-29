@@ -2,6 +2,8 @@
 
 Modern, ultra hafif, sunucu tarafında Python/NodeJS gerektirmeyen ve en düşük donanımlı sunucularda bile anlık yüzlerce kişinin aynı anda oynayabileceği yeni nesil web tabanlı Tabu oyunu.
 
+<a href="https://ugurturkerkebeci.github.io/tabuplus">Tıkla Uç</a>
+
 ---
 
 ## 🌟 Öne Çıkan Özellikler
